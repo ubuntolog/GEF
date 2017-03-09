@@ -108,6 +108,46 @@ function jobRemovalError(errorMessage) {
     }
 }
 
+function jobPauseStart() {
+    return {
+        type: actionTypes.JOB_PAUSE_START
+    }
+}
+
+function jobPauseSuccess(data) {
+    return {
+        type: actionTypes.JOB_PAUSE_SUCCESS,
+        data: data
+    }
+}
+
+function jobPauseError(errorMessage) {
+    return {
+        type: actionTypes.JOB_PAUSE_ERROR,
+        errorMessage: errorMessage
+    }
+}
+
+function jobResumeStart() {
+    return {
+        type: actionTypes.JOB_RESUME_START
+    }
+}
+
+function jobResumeSuccess(data) {
+    return {
+        type: actionTypes.JOB_RESUME_SUCCESS,
+        data: data
+    }
+}
+
+function jobResumeError(errorMessage) {
+    return {
+        type: actionTypes.JOB_RESUME_ERROR,
+        errorMessage: errorMessage
+    }
+}
+
 function volumesFetchStart() {
     return {
         type: actionTypes.VOLUME_FETCH_START
@@ -249,6 +289,40 @@ function removeJob(jobID) {
             Alert.error("Cannot remove the job.");
             log("An error occurred during the job removal", err);
             dispatch(jobRemovalError(err));
+        })
+    }
+}
+
+function pauseJob(jobID) {
+    return function (dispatch, getState)  {
+        dispatch(jobPauseStart());
+        var data = {'Status': 'resume'};
+        const resultPromise = axios.put( apiNames.jobs + "/" + jobID + "/status", data);
+
+
+        resultPromise.then(response => {
+            log('paused job:', response.data);
+            dispatch(jobPauseSuccess(response.data));
+        }).catch(err => {
+            Alert.error("Cannot pause the job.");
+            log("An error occurred during the job pause", err);
+            dispatch(jobPauseError(err));
+        })
+    }
+}
+
+function resumeJob(jobID) {
+    return function (dispatch, getState)  {
+        dispatch(jobResumeStart());
+        var data = {'Status': 'resume'};
+        const resultPromise = axios.put( apiNames.jobs + "/" + jobID + "/status", data);
+        resultPromise.then(response => {
+            log('resumed job:', response.data);
+            dispatch(jobResumeSuccess(response.data));
+        }).catch(err => {
+            Alert.error("Cannot pause the job.");
+            log("An error occurred during the job resume", err);
+            dispatch(jobResumeError(err));
         })
     }
 }
@@ -425,6 +499,8 @@ export default {
     consoleOutputFetchError,
     fetchJobs,
     removeJob,
+    pauseJob,
+    resumeJob,
     fetchServices,
     fetchService,
     fetchVolumes,

@@ -9,6 +9,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"fmt"
+	"io/ioutil"
+	"encoding/json"
 )
 
 const (
@@ -61,6 +64,8 @@ func NewServer(cfg def.ServerConfig, pier *pier.Pier, tmpDir string) (*Server, e
 		"GET /jobs":                server.listJobsHandler,
 		"GET /jobs/{jobID}":        server.inspectJobHandler,
 		"DELETE /jobs/{jobID}":     server.removeJobHandler,
+		"GET /jobs/{jobID}/status": server.getJobStatusHandler,
+		"PUT /jobs/{jobID}/status":  server.pauseAndResumeJobHandler,
 		"GET /jobs/{jobID}/output": server.getJobTask,
 
 		"GET /volumes/{volumeID}/{path:.*}": server.volumeContentHandler,
@@ -230,6 +235,62 @@ func (s *Server) removeJobHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	Response{w}.Ok(jmap("JobID", jobID))
+}
+
+func (s *Server) getJobStatusHandler(w http.ResponseWriter, r *http.Request) {
+	logRequest(r)
+	vars := mux.Vars(r)
+	statusMessage, err := s.pier.GetJobStatus(pier.JobID(vars["jobID"]))
+	if err != nil {
+		Response{w}.ClientError(err.Error(), err)
+		return
+	}
+	Response{w}.Ok(jmap("Status", statusMessage))
+}
+
+func (s *Server) pauseAndResumeJobHandler(w http.ResponseWriter, r *http.Request) {
+	logRequest(r)
+	vars := mux.Vars(r)
+	statusValue := r.FormValue("status")
+	fmt.Println("PAUSE or RESUME")
+
+	r.ParseForm()
+
+
+	body, err := ioutil.ReadAll(r.Body)
+
+	if err != nil {
+		panic(err.Error())
+	}
+	type StatusMsg struct {
+		Status string
+	}
+	var data StatusMsg
+	json.Unmarshal(body, &data)
+	fmt.Printf("Results: %v\n", data)
+	fmt.Println(body)
+
+
+	if statusValue == "pause" {
+		fmt.Println("PAUSE")
+		jobID, err := s.pier.PauseJob(pier.JobID(vars["jobID"]))
+		if err != nil {
+			Response{w}.ClientError(err.Error(), err)
+			return
+		}
+		Response{w}.Ok(jmap("JobID", jobID))
+	} else if statusValue == "resume" {
+		fmt.Println("RESUME")
+		jobID, err := s.pier.ResumeJob(pier.JobID(vars["jobID"]))
+		if err != nil {
+			Response{w}.ClientError(err.Error(), err)
+			return
+		}
+		Response{w}.Ok(jmap("JobID", jobID))
+	} else {
+		Response{w}.ServerNewError("command is missing: pause or resume")
+
+	}
 }
 
 func (s *Server) getJobTask(w http.ResponseWriter, r *http.Request) {

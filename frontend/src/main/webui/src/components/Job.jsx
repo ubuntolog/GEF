@@ -99,6 +99,10 @@ class Job extends React.Component {
         this.props.actions.removeJob(this.props.job.ID);
     }
 
+    handleJobPause() {
+        this.props.actions.pauseJob(this.props.job.ID);
+    }
+
     tick() {
         this.props.actions.fetchJobs();
         this.props.actions.consoleOutputFetch(this.props.job.ID);
@@ -206,11 +210,11 @@ class Job extends React.Component {
                                         <button type="button" className={buttonClass} onClick={this.handleInspectOutputVolume.bind(this)}>
                                             <span className="glyphicon glyphicon-arrow-up" aria-hidden="true"></span> Output Volume
                                         </button>
-                                        <button type="button" className={buttonClass} onClick={this.handleInspectOutputVolume.bind(this)}>
-                                            <span className="glyphicon glyphicon-pause" aria-hidden="true"></span> Pause the Job
+                                        <button type="button" className="btn btn-default" onClick={this.handleJobPause.bind(this)}>
+                                            <span className="glyphicon glyphicon-pause" aria-hidden="true"></span> Pause
                                         </button>
                                         <button type="button" className="btn btn-default" onClick={this.handleJobRemoval.bind(this)}>
-                                            <span className="glyphicon glyphicon-trash" aria-hidden="true"></span> Remove the Job
+                                            <span className="glyphicon glyphicon-trash" aria-hidden="true"></span> Remove
                                         </button>
                                     </div>
                                 </div>

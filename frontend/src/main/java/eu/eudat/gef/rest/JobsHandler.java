@@ -8,6 +8,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.*;
 import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MediaType;
 import java.text.DateFormat;
 import org.slf4j.LoggerFactory;
 
@@ -44,12 +45,22 @@ public class JobsHandler {
 	@GET
 	@Path("{jobID}/{path: .*}")
 	public InputStream inspectJob(@PathParam("jobID") String jobID, @PathParam("path") String path) throws Exception {
+		System.out.println("GET METHOD");
 		if (path == "") {
 		    return rp.forward(apiUrl + "/" + jobID, request, response);
 		} else {
 		    return rp.forward(apiUrl + "/" + jobID + "/" + path, request, response);
 		}
 	}
+
+	@PUT
+	@Path("{jobID}/{path: .*}")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+    public InputStream inspectJob(@PathParam("jobID") String jobID, @PathParam("path") String path) throws Exception {
+        System.out.println("PUT METHOD");
+        return rp.forward(apiUrl + "/" + jobID + "/" + path, request, response);
+    }
 
     @DELETE
     @Path("{jobID}")

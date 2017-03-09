@@ -11,6 +11,13 @@ import (
 
 const stagingVolumeName = "volume-stage-in"
 
+const (
+	jobRunningState  = -2
+	jobPausedState   = -1
+	jobFinishedState = 0
+	// Everything >0 means there has been an error and the job failed
+)
+
 // Pier is a master struct for gef-docker abstractions
 type Pier struct {
 	docker   dckr.Client
@@ -83,7 +90,7 @@ func (p *Pier) RunService(service Service, inputPID string) (Job, error) {
 		ServiceID: service.ID,
 		Created:   time.Now(),
 		Input:     inputPID,
-		State:     &JobState{nil, "Created", -1},
+		State:     &JobState{nil, "Created", -2},
 	}
 	p.jobs.add(job)
 
@@ -93,7 +100,7 @@ func (p *Pier) RunService(service Service, inputPID string) (Job, error) {
 }
 
 func (p *Pier) runJob(job *Job, service Service, inputPID string) {
-	p.jobs.setState(job.ID, JobState{nil, "Creating a new input volume", -1})
+	p.jobs.setState(job.ID, JobState{nil, "Creating a new input volume", -2})
 	inputVolume, err := p.docker.NewVolume()
 	if err != nil {
 		p.jobs.setState(job.ID, JobState{def.Err(err, "Error while creating new input volume"), "Error", 1})
@@ -102,7 +109,7 @@ func (p *Pier) runJob(job *Job, service Service, inputPID string) {
 	log.Println("new input volume created: ", inputVolume)
 	p.jobs.setInputVolume(job.ID, VolumeID(inputVolume.ID))
 	{
-		p.jobs.setState(job.ID, JobState{nil, "Performing data staging", -1})
+		p.jobs.setState(job.ID, JobState{nil, "Performing data staging", -2})
 		binds := []dckr.VolBind{
 			dckr.NewVolBind(inputVolume.ID, "/volume", false),
 		}
@@ -120,7 +127,7 @@ func (p *Pier) runJob(job *Job, service Service, inputPID string) {
 			return
 		}
 	}
-	p.jobs.setState(job.ID, JobState{nil, "Creating a new output volume", -1})
+	p.jobs.setState(job.ID, JobState{nil, "Creating a new output volume", -2})
 	outputVolume, err := p.docker.NewVolume()
 	if err != nil {
 		p.jobs.setState(job.ID, JobState{def.Err(err, "Error while creating new output volume"), "Error", 1})
@@ -129,7 +136,7 @@ func (p *Pier) runJob(job *Job, service Service, inputPID string) {
 	log.Println("new output volume created: ", outputVolume)
 	p.jobs.setOutputVolume(job.ID, VolumeID(outputVolume.ID))
 	{
-		p.jobs.setState(job.ID, JobState{nil, "Executing the service", -1})
+		p.jobs.setState(job.ID, JobState{nil, "Executing the service", -2})
 		binds := []dckr.VolBind{
 			dckr.NewVolBind(inputVolume.ID, service.Input[0].Path, true),
 			dckr.NewVolBind(outputVolume.ID, service.Output[0].Path, false),
@@ -190,5 +197,70 @@ func (p *Pier) RemoveJob(jobID JobID) (JobID, error) {
 
 	// Removing the job from the list
 	p.jobs.remove(jobID)
+	return jobID, nil
+}
+
+// GetJobStatus exported
+func (p *Pier) GetJobStatus(jobID JobID) (string, error) {
+	var jobStatusMessage = ""
+	job, ok := p.jobs.get(jobID)
+
+	if !ok {
+		return jobStatusMessage, def.Err(nil, "not found")
+	}
+
+	if job.State.Code == jobRunningState {
+		jobStatusMessage = "Running"
+	} else if job.State.Code == jobPausedState {
+		jobStatusMessage = "Paused"
+	} else if job.State.Code == jobFinishedState {
+		jobStatusMessage = "Finished"
+	} else {
+		jobStatusMessage = "Failed"
+	}
+
+	return jobStatusMessage, nil
+}
+
+// RemoveJob exported
+func (p *Pier) PauseJob(jobID JobID) (JobID, error) {
+	job, ok := p.jobs.get(jobID)
+	if !ok {
+		return jobID, def.Err(nil, "not found")
+	}
+
+	if len(job.Tasks) > 0 {
+		if job.State.Code == jobRunningState {
+			p.jobs.setState(job.ID, JobState{nil, "Pausing the job", -2})
+			err := p.docker.PauseContainer(string(job.Tasks[len(job.Tasks)-1].ContainerID))
+			if err != nil {
+				return jobID, def.Err(err, "could not pause the job")
+			}
+			p.jobs.setState(job.ID, JobState{nil, "The job is paused", -1})
+		}
+
+	}
+
+	return jobID, nil
+}
+
+// ResumeJob exported
+func (p *Pier) ResumeJob(jobID JobID) (JobID, error) {
+	job, ok := p.jobs.get(jobID)
+	if !ok {
+		return jobID, def.Err(nil, "not found")
+	}
+
+	if len(job.Tasks) > 0 {
+		if job.State.Code == jobPausedState {
+			p.jobs.setState(job.ID, JobState{nil, "Resuming the job", -1})
+			err := p.docker.ResumeContainer(string(job.Tasks[len(job.Tasks)-1].ContainerID))
+			if err != nil {
+				return jobID, def.Err(err, "could not resume the job")
+			}
+			p.jobs.setState(job.ID, JobState{nil, "The job resumes", -2})
+		}
+	}
+
 	return jobID, nil
 }

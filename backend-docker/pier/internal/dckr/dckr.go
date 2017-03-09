@@ -264,6 +264,10 @@ func (c Client) StartImage(id ImageID, cmdArgs []string, binds []VolBind) (Conta
 	}
 
 	img, err := c.c.InspectImage(string(id))
+	fmt.Println("---------------------")
+	fmt.Println(id)
+	fmt.Println(img.ID)
+	fmt.Println(img)
 	if err != nil {
 		return ContainerID(""), &stdout, def.Err(err, "InspectImage failed")
 	}
@@ -363,6 +367,16 @@ func (c Client) StartExistingContainer(contID string, binds []string) (Container
 		return ContainerID(""), err
 	}
 	return ContainerID(contID), nil
+}
+
+// PauseContainer
+func (c Client) PauseContainer(containerID string) error {
+	return c.c.PauseContainer(containerID)
+}
+
+// ResumeContainer
+func (c Client) ResumeContainer(containerID string) error {
+	return c.c.UnpauseContainer(containerID)
 }
 
 // RemoveContainer
