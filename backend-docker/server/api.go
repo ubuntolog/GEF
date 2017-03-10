@@ -10,8 +10,6 @@ import (
 	"path/filepath"
 	"strings"
 	"fmt"
-	"io/ioutil"
-	"encoding/json"
 )
 
 const (
@@ -254,21 +252,7 @@ func (s *Server) pauseAndResumeJobHandler(w http.ResponseWriter, r *http.Request
 	statusValue := r.FormValue("status")
 	fmt.Println("PAUSE or RESUME")
 
-	r.ParseForm()
 
-
-	body, err := ioutil.ReadAll(r.Body)
-
-	if err != nil {
-		panic(err.Error())
-	}
-	type StatusMsg struct {
-		Status string
-	}
-	var data StatusMsg
-	json.Unmarshal(body, &data)
-	fmt.Printf("Results: %v\n", data)
-	fmt.Println(body)
 
 
 	if statusValue == "pause" {
